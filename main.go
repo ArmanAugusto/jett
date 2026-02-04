@@ -44,7 +44,7 @@ type TaskList struct {
 }
 
 /* =========================
-   Colors (Catppuccin Mocha)
+   Colors (Catppuccin Mocha-ish)
    ========================= */
 
 const (
@@ -67,30 +67,53 @@ const (
 )
 
 /* =========================
-   Storage
+   Storage Paths
    ========================= */
 
 func tasksFilePath() (string, error) {
-	wd, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
+	wd, _ := os.Getwd()
 	return filepath.Join(wd, "tasks.json"), nil
 }
 
+func logFilePath() (string, error) {
+	wd, _ := os.Getwd()
+	return filepath.Join(wd, "jett.log"), nil
+}
+
+/* =========================
+   Logging
+   ========================= */
+
+func logAction(action string, taskID int, detail string) {
+	path, err := logFilePath()
+	if err != nil {
+		return
+	}
+
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+
+	timestamp := time.Now().Format("2006-01-02 15:04:05")
+	line := fmt.Sprintf("%s | %-6s | Task #%d | %s\n",
+		timestamp, action, taskID, detail)
+
+	f.WriteString(line)
+}
+
+/* =========================
+   Task Storage
+   ========================= */
+
 func loadTasks() (TaskList, error) {
 	var list TaskList
-	path, err := tasksFilePath()
-	if err != nil {
-		return list, err
-	}
+	path, _ := tasksFilePath()
 
 	data, err := os.ReadFile(path)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return TaskList{Tasks: []Task{}}, nil
-		}
-		return list, err
+		return TaskList{Tasks: []Task{}}, nil
 	}
 
 	if len(data) == 0 {
@@ -105,15 +128,9 @@ func loadTasks() (TaskList, error) {
 }
 
 func saveTasks(list TaskList) error {
-	path, err := tasksFilePath()
-	if err != nil {
-		return err
-	}
-	data, err := json.MarshalIndent(list, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, data, 0o644)
+	path, _ := tasksFilePath()
+	data, _ := json.MarshalIndent(list, "", "  ")
+	return os.WriteFile(path, data, 0644)
 }
 
 func nextID(list TaskList) int {
@@ -136,11 +153,11 @@ func parseDate(s string) (time.Time, error) {
 
 func priorityFromString(s string) (Priority, error) {
 	switch strings.ToLower(s) {
-	case "high", "h":
+	case "high":
 		return PriorityHigh, nil
-	case "medium", "m":
+	case "medium":
 		return PriorityMedium, nil
-	case "low", "l":
+	case "low":
 		return PriorityLow, nil
 	}
 	return "", fmt.Errorf("invalid priority")
@@ -148,32 +165,25 @@ func priorityFromString(s string) (Priority, error) {
 
 func statusFromString(s string) (Status, error) {
 	switch strings.ToLower(s) {
-	case "pending", "p":
+	case "pending":
 		return StatusPending, nil
-	case "done", "d":
+	case "done":
 		return StatusDone, nil
 	}
 	return "", fmt.Errorf("invalid status")
 }
 
-func colorPriority(p Priority) string {
-	switch p {
-	case PriorityHigh:
-		return fgPriorityHigh + "High" + reset
-	case PriorityMedium:
-		return fgPriorityMedium + "Medium" + reset
-	case PriorityLow:
-		return fgPriorityLow + "Low" + reset
-	}
-	return string(p)
+func dateOnly(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 }
 
-func statusAndColor(t Task, now time.Time) (string, string) {
+func statusAndColor(t Task) (string, string) {
 	if t.Status == StatusDone {
 		return "Done", fgStatusDone
 	}
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	due := time.Date(t.DueDate.Year(), t.DueDate.Month(), t.DueDate.Day(), 0, 0, 0, 0, t.DueDate.Location())
+
+	today := dateOnly(time.Now())
+	due := dateOnly(t.DueDate)
 
 	if due.Before(today) {
 		return "Overdue", fgStatusOverdue
@@ -186,7 +196,7 @@ func statusAndColor(t Task, now time.Time) (string, string) {
 
 func printHeader() {
 	fmt.Printf("%s┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓%s\n", fgPink, reset)
-	fmt.Printf("%s┃              Jett CLI                ┃%s\n", fgTitle, reset)
+	fmt.Printf("%s┃               Jett CLI              ┃%s\n", fgTitle, reset)
 	fmt.Printf("%s┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛%s\n", fgPink, reset)
 }
 
@@ -196,95 +206,66 @@ func printHeader() {
 
 func cmdAdd(args []string) {
 	if len(args) < 3 {
-		fmt.Println("Usage: jett add \"Title\" START DUE [PRIORITY]")
+		fmt.Println("Usage: jett add \"Title\" START_DATE DUE_DATE [priority]")
 		return
 	}
 
+	title := args[0]
 	start, _ := parseDate(args[1])
 	due, _ := parseDate(args[2])
+
 	prio := PriorityMedium
 	if len(args) > 3 {
 		prio, _ = priorityFromString(args[3])
 	}
 
 	list, _ := loadTasks()
+
 	task := Task{
 		ID:        nextID(list),
-		Title:     args[0],
+		Title:     title,
 		StartDate: start,
 		DueDate:   due,
 		Priority:  prio,
 		Status:    StatusPending,
 	}
+
 	list.Tasks = append(list.Tasks, task)
 	saveTasks(list)
+
+	logAction("ADD", task.ID, task.Title)
 
 	printHeader()
 	fmt.Printf("%sAdded:%s %s\n", fgText, reset, task.Title)
 }
 
-func cmdList(args []string) {
-	list, _ := loadTasks()
-	printHeader()
-
-	var pf *Priority
-	var sf *Status
-
-	for _, a := range args {
-		if p, err := priorityFromString(a); err == nil {
-			pf = &p
-		} else if s, err := statusFromString(a); err == nil {
-			sf = &s
-		}
-	}
-
-	sort.Slice(list.Tasks, func(i, j int) bool {
-		return list.Tasks[i].DueDate.Before(list.Tasks[j].DueDate)
-	})
-
-	now := time.Now()
-	shown := 0
-
-	for _, t := range list.Tasks {
-		if pf != nil && t.Priority != *pf {
-			continue
-		}
-		if sf != nil && t.Status != *sf {
-			continue
-		}
-
-		st, col := statusAndColor(t, now)
-		fmt.Printf("%s[%2d]%s %s\n", fgPink, t.ID, reset, t.Title)
-		fmt.Printf("  Due: %s  Priority: %s\n", t.DueDate.Format("2006-01-02"), colorPriority(t.Priority))
-		fmt.Printf("  Status: %s%s%s\n\n", col, st, reset)
-		shown++
-	}
-
-	if shown == 0 {
-		fmt.Printf("%sNo matching tasks%s\n", fgMuted, reset)
-	}
-}
-
 func cmdDone(args []string) {
 	id, _ := strconv.Atoi(args[0])
 	list, _ := loadTasks()
+
 	for i := range list.Tasks {
 		if list.Tasks[i].ID == id {
 			list.Tasks[i].Status = StatusDone
+			logAction("DONE", id, list.Tasks[i].Title)
 		}
 	}
+
 	saveTasks(list)
 }
 
 func cmdDelete(args []string) {
 	id, _ := strconv.Atoi(args[0])
 	list, _ := loadTasks()
+
 	out := []Task{}
 	for _, t := range list.Tasks {
-		if t.ID != id {
-			out = append(out, t)
+		if t.ID == id {
+			logAction("DELETE", id, t.Title)
+			continue
 		}
+		out = append(out, t)
 	}
+
 	list.Tasks = out
 	saveTasks(list)
 }
@@ -294,77 +275,67 @@ func cmdEdit(args []string) {
 	list, _ := loadTasks()
 
 	for i, t := range list.Tasks {
-		if t.ID == id {
-			for _, kv := range args[1:] {
-				parts := strings.SplitN(kv, "=", 2)
-				if len(parts) != 2 {
-					continue
-				}
-				switch parts[0] {
-				case "title":
-					t.Title = parts[1]
-				case "due":
-					t.DueDate, _ = parseDate(parts[1])
-				case "priority":
-					t.Priority, _ = priorityFromString(parts[1])
-				case "status":
-					t.Status, _ = statusFromString(parts[1])
-				}
-			}
-			list.Tasks[i] = t
+		if t.ID != id {
+			continue
 		}
+
+		changes := []string{}
+
+		for _, kv := range args[1:] {
+			parts := strings.SplitN(kv, "=", 2)
+			if len(parts) != 2 {
+				continue
+			}
+
+			key := parts[0]
+			val := parts[1]
+
+			switch key {
+			case "title":
+				t.Title = val
+			case "due":
+				t.DueDate, _ = parseDate(val)
+			case "priority":
+				t.Priority, _ = priorityFromString(val)
+			case "status":
+				t.Status, _ = statusFromString(val)
+			}
+
+			changes = append(changes, kv)
+		}
+
+		list.Tasks[i] = t
+		logAction("EDIT", id, strings.Join(changes, ", "))
 	}
+
 	saveTasks(list)
 }
 
-func cmdSummary() {
+func cmdList(args []string) {
 	list, _ := loadTasks()
 	printHeader()
 
-	now := time.Now()
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-
-	total := len(list.Tasks)
-	overdue := 0
-	todayCnt := 0
-	done := 0
+	sort.Slice(list.Tasks, func(i, j int) bool {
+		return list.Tasks[i].DueDate.Before(list.Tasks[j].DueDate)
+	})
 
 	for _, t := range list.Tasks {
-		if t.Status == StatusDone {
-			done++
-			continue
-		}
-		due := time.Date(t.DueDate.Year(), t.DueDate.Month(), t.DueDate.Day(), 0, 0, 0, 0, t.DueDate.Location())
-		if due.Before(today) {
-			overdue++
-		} else if due.Equal(today) {
-			todayCnt++
-		}
+		status, col := statusAndColor(t)
+		fmt.Printf("%s[%d]%s %s\n", fgPink, t.ID, reset, t.Title)
+		fmt.Printf("  Due: %s  Status: %s%s%s\n\n",
+			t.DueDate.Format("2006-01-02"),
+			col, status, reset)
 	}
-
-	fmt.Printf("Total: %d\n", total)
-	fmt.Printf("%sOverdue:%s %d\n", fgStatusOverdue, reset, overdue)
-	fmt.Printf("%sDue today:%s %d\n", fgStatusDueToday, reset, todayCnt)
-	fmt.Printf("%sDone:%s %d\n", fgStatusDone, reset, done)
 }
 
 /* =========================
    Main
    ========================= */
 
-func printUsage() {
-	printHeader()
-	fmt.Println("jett add \"Title\" START DUE [PRIORITY]")
-	fmt.Println("jett list [high|medium|low] [pending|done]")
-	fmt.Println("jett edit <id> field=value")
-	fmt.Println("jett delete <id>")
-	fmt.Println("jett done <id>")
-	fmt.Println("jett summary")
-}
-
 func main() {
 	if len(os.Args) < 2 {
-		printUsage()
+		fmt.Println("Jett CLI")
+		fmt.Println("Commands: add, list, edit, delete, done")
 		return
 	}
 
@@ -376,15 +347,13 @@ func main() {
 		cmdAdd(args)
 	case "list":
 		cmdList(args)
-	case "edit":
-		cmdEdit(args)
-	case "delete":
-		cmdDelete(args)
 	case "done":
 		cmdDone(args)
-	case "summary":
-		cmdSummary()
+	case "delete":
+		cmdDelete(args)
+	case "edit":
+		cmdEdit(args)
 	default:
-		printUsage()
+		fmt.Println("Unknown command.")
 	}
 }
