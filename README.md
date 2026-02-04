@@ -35,6 +35,7 @@ It is designed to help you manage tasks with:
 mkdir jett
 cd jett
 ```
+---
 
 ### Initialize Go module
 
@@ -43,11 +44,16 @@ go mod init jett
 go mod tidy
 ```
 
+Save main.go inside.
+
+---
+
 ### Build the binary
 
 ```bash
 go build -o jett .
 ```
+---
 
 ### Run it:
 
@@ -55,9 +61,11 @@ go build -o jett .
 ./jett list
 ```
 
-## Usage
+## 🚀 Usage
 
-### Add a Task
+---
+
+### ➕ Add a Task
 
 ```bash
 jett add "Pay rent" 2026-02-01 2026-02-05 High
@@ -74,7 +82,9 @@ Priority options:
 - Medium (default)
 - Low
 
-### List Tasks
+---
+
+### 📋 List Tasks
 
 ```bash
 jett list
@@ -85,30 +95,46 @@ Displays all tasks with:
 - Priority
 - Status color
 
-### Mark Task Done
+---
+
+### ✅ Mark Task Done
 
 ```bash
 jett done 1
 ```
 
-### Edit a Task
+---
+
+### ✏️ Edit a Task
 
 ```bash
 jett edit 2 title="New title" due=2026-02-10 priority=Low
 ```
 
-### Delete a Task
+Supported fields:
+- title=
+- due-YYYY-MM-DD
+- priority=High|Medium|Low
+- status=Pending|Done
+
+---
+
+### ❌ Delete a Task
 
 ```bash
 jett delete 3
 ```
 
-### Task Storage
+---
+
+### 📝 Task Storage
 
 Tasks are stored locally in:
+```pgsql
 tasks.json
+```
 
-#### Example:
+Example:
 
 ```json
 {
@@ -125,7 +151,28 @@ tasks.json
 }
 ```
 
-### Theme
+---
+
+### 📓 Logging (Audit Trail)
+
+Every action is recorded in:
+```lua
+jett.log
+```
+
+Example log output:
+```yaml
+2026-02-03 20:15:01 | ADD    | Task #1 | Pay rent
+2026-02-03 20:16:22 | EDIT   | Task #1 | due=2026-02-10
+2026-02-03 20:17:05 | DONE   | Task #1 | Pay rent
+2026-02-03 20:18:11 | DELETE | Task #1 | Pay rent
+```
+
+This ensures a full history even if tasksare edited or removed.
+
+---
+
+### 🎨 Theme
 
 Jett uses a Catppuccin Mocha-inspired palette:
 - Pink accents for task IDs
@@ -134,7 +181,9 @@ Jett uses a Catppuccin Mocha-inspired palette:
 - Red = overdue
 - Gray = completed
 
-### Future Improvements (Roadmap)
+---
+
+### 🛠️ Future Improvements (Roadmap)
 
 Planned upgrades:
 - jett list today / jett list overdue
@@ -144,10 +193,14 @@ Planned upgrades:
 - Recurring tasks
 - Full-screen TUI mode (Bubble Tea)
 
-###  License
+---
+
+###  📄 License
 
 MIT License--free to use, modify, and distribute.
 
-## Built with Love In Go + Catppuccin Mocha
+---
 
-### Enjoy your tasks in style
+### ☕ Built with Love in Go + Catppuccin Mocha
+
+Enjoy your tasks in style ✨
