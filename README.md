@@ -127,7 +127,7 @@ jett delete 3
 
 ---
 
-### 📝 Task Storage
+## 📝 Task Storage
 
 Tasks are stored locally in:
 ```pgsql
@@ -153,7 +153,7 @@ Example:
 
 ---
 
-### 📓 Logging (Audit Trail)
+## 📓 Logging (Audit Trail)
 
 Every action is recorded in:
 ```lua
@@ -172,7 +172,7 @@ This ensures a full history even if tasksare edited or removed.
 
 ---
 
-### 🎨 Theme
+## 🎨 Theme
 
 Jett uses a Catppuccin Mocha-inspired palette:
 - Pink accents for task IDs
@@ -183,7 +183,7 @@ Jett uses a Catppuccin Mocha-inspired palette:
 
 ---
 
-### 🛠️ Future Improvements (Roadmap)
+## 🛠️ Future Improvements (Roadmap)
 
 Planned upgrades:
 - jett list today / jett list overdue
@@ -195,12 +195,12 @@ Planned upgrades:
 
 ---
 
-###  📄 License
+##  📄 License
 
 MIT License--free to use, modify, and distribute.
 
 ---
 
-### ☕ Built with Love in Go + Catppuccin Mocha
+## ☕ Built with Love in Go + Catppuccin Mocha
 
 Enjoy your tasks in style ✨
